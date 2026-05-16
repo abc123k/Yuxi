@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录认证 Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+    .container { width: 420px; }
+    .card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    h2 { margin-bottom: 20px; text-align: center; color: #333; }
+    label { display: block; font-size: 14px; color: #666; margin-bottom: 4px; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+    input:focus { outline: none; border-color: #409eff; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; color: #fff; background: #409eff; transition: .2s; }
+    .btn:hover { background: #337ecc; }
+    .btn.danger { background: #f56c6c; }
+    .btn.danger:hover { background: #d9534f; }
+    .btn.secondary { background: #909399; }
+    .btn.secondary:hover { background: #7d7f85; }
+    .msg { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 13px; display: none; }
+    .msg.error { display: block; background: #fef0f0; color: #f56c6c; }
+    .msg.success { display: block; background: #f0f9eb; color: #67c23a; }
+    .msg.info { display: block; background: #ecf5ff; color: #409eff; }
+
+    /* 登录后 */
+    #loginPanel { display: none; }
+    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #999; font-size: 13px; }
+    .info-value { color: #333; font-size: 13px; font-weight: 500; }
+    .token-box { word-break: break-all; background: #f8f8f8; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; color: #666; max-height: 80px; overflow-y: auto; margin-top: 12px; }
+    .api-box { margin-top: 16px; }
+    .api-box pre { background: #f8f8f8; padding: 12px; border-radius: 6px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; }
+    .actions .btn { flex: 1; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ========== 登录面板 ========== -->
+  <div id="registerPanel" class="card">
+    <h2>登录认证 Demo</h2>
+    <p style="text-align:center;color:#999;font-size:13px;margin-bottom:20px;">
+      模拟项目的 JWT 登录完整流程
+    </p>
+    <label>账号 (user_id)</label>
+    <input id="userId" type="text" placeholder="admin 或 user01" value="admin">
+    <label>密码</label>
+    <input id="password" type="password" placeholder="密码" value="admin123">
+    <button class="btn" onclick="doLogin()">登录</button>
+    <div id="loginMsg" class="msg"></div>
+    <p style="margin-top:16px;font-size:12px;color:#bbb;text-align:center;">
+      预置账号: admin/admin123, user01/user123
+    </p>
+  </div>
+
+  <!-- ========== 登录后面板 ========== -->
+  <div id="loginPanel" class="card">
+    <h2>已登录</h2>
+
+    <div class="info-row">
+      <span class="info-label">用户 ID</span>
+      <span class="info-value" id="showId">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">用户名</span>
+      <span class="info-value" id="showName">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">角色</span>
+      <span class="info-value" id="showRole">-</span>
+    </div>
+
+    <div class="token-box" id="tokenBox">Token 将显示在这里</div>
+
+    <!-- 调用受保护 API -->
+    <div class="api-box">
+      <label>测试受保护的 API: <code>GET /api/protected</code></label>
+      <button class="btn secondary" onclick="callProtected()" style="margin-top:8px;">
+        发起请求
+      </button>
+      <pre id="apiResult" style="display:none;"></pre>
+    </div>
+
+    <div class="actions">
+      <button class="btn danger" onclick="doLogout()">退出登录</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:9000';
+let token = '';
+
+function showMsg(el, text, type) {
+  el.className = 'msg ' + type;
+  el.textContent = text;
+}
+
+async function doLogin() {
+  const userId = document.getElementById('userId').value.trim();
+  const pwd = document.getElementById('password').value;
+  const msg = document.getElementById('loginMsg');
+  msg.className = 'msg';
+
+  if (!userId || !pwd) return showMsg(msg, '请输入账号和密码', 'error');
+
+  try {
+    const res = await fetch(`${API}/api/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `username=${encodeURIComponent(userId)}&password=${encodeURIComponent(pwd)}`
+    });
+    const data = await res.json();
+    if (!res.ok) return showMsg(msg, data.detail || '登录失败', 'error');
+
+    // 登录成功，保存 token
+    token = data.access_token;
+    showMsg(msg, '登录成功！正在跳转...', 'success');
+
+    // 展示用户信息
+    document.getElementById('showId').textContent = data.user_id;
+    document.getElementById('showName').textContent = data.username;
+    document.getElementById('showRole').textContent = data.role;
+    document.getElementById('tokenBox').textContent = data.access_token;
+
+    setTimeout(() => {
+      document.getElementById('registerPanel').style.display = 'none';
+      document.getElementById('loginPanel').style.display = 'block';
+    }, 800);
+
+  } catch (e) {
+    showMsg(msg, '请求失败: ' + e.message, 'error');
+  }
+}
+
+async function callProtected() {
+  const el = document.getElementById('apiResult');
+  try {
+    const res = await fetch(`${API}/api/protected`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    el.style.display = 'block';
+    el.textContent = `状态码: ${res.status}\n` + JSON.stringify(data, null, 2);
+  } catch (e) {
+    el.style.display = 'block';
+    el.textContent = '请求失败: ' + e.message;
+  }
+}
+
+function doLogout() {
+  token = '';
+  document.getElementById('loginPanel').style.display = 'none';
+  document.getElementById('registerPanel').style.display = 'block';
+  document.getElementById('loginMsg').className = 'msg';
+  document.getElementById('apiResult').style.display = 'none';
+}
+</script>
+</body>
+</html>
