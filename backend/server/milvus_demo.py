@@ -47,12 +47,12 @@ def hashstr(input_string, length=None, with_salt=False, salt=None):
         return hash[:length]
     return hash
 
-def _create_new_collection(self, collection_name: str, embed_info: Any, db_id: str) -> Collection:
+   def _create_new_collection(self, collection_name: str, embed_info: Any, db_id: str) -> Collection:
        """创建新的 Milvus 集合"""
        embedding_dim = embed_info.get("dimension", 1024)
        model_name = embed_info.get("name", "default")
 
-        # 定义集合Schema
+       # 定义集合Schema
        fields = [
            FieldSchema(name="id", dtype=DataType.VARCHAR, max_length=100, is_primary=True),
            FieldSchema(
@@ -63,9 +63,10 @@ def _create_new_collection(self, collection_name: str, embed_info: Any, db_id: s
                analyzer_params=CONTENT_ANALYZER_PARAMS,
            ),
            FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=500),
-           FieldSchema(name="docs", dtype=DataType.VARCHAR, max_length=100),
-           FieldSchema(name="subject", dtype=DataType.INT64),
-           FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=embedding_dim),
+           FieldSchema(name="chunk_id", dtype=DataType.VARCHAR, max_length=100),
+           FieldSchema(name="file_id", dtype=DataType.VARCHAR, max_length=100),
+           FieldSchema(name="chunk_index", dtype=DataType.INT64),
+           FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=embedding_dim),
            FieldSchema(name=CONTENT_SPARSE_FIELD, dtype=DataType.SPARSE_FLOAT_VECTOR),
        ]
        bm25_function = Function(
